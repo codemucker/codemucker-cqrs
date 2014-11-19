@@ -11,14 +11,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.ws.rs.Path;
-
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
-import org.codemucker.cqrs.RestPath;
+import org.codemucker.cqrs.Path;
+import org.codemucker.cqrs.PathExpression;
+import org.codemucker.cqrs.PathExpression.Var;
 import org.codemucker.cqrs.client.gwt.AbstractCqrsGwtClient;
 import org.codemucker.cqrs.client.gwt.GenerateCqrsGwtClient;
-import org.codemucker.cqrs.generator.GwtClientGenerator.PathExpression.Var;
 import org.codemucker.jfind.FindResult;
 import org.codemucker.jfind.ReflectedAnnotation;
 import org.codemucker.jfind.ReflectedClass;
@@ -182,7 +181,7 @@ public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient>
         for (Constructor<?> ctor : serviceDetails.options.serviceBaseClass().getConstructors()) {
             if (!Modifier.isPrivate(ctor.getModifiers())) {
                 addGeneratedMarkers(template);
-                copyConstructor(serviceDetails.serviceTypeSimple, template, ctor);
+                copySuperConstructor(serviceDetails.serviceTypeSimple, template, ctor);
             }
         }
         template.pl("}");
@@ -191,7 +190,7 @@ public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient>
     }
 
     // TODO:move to separate transform class?
-    private void copyConstructor(String ctorName, SourceTemplate template, Constructor<?> ctor) {
+    private void copySuperConstructor(String ctorName, SourceTemplate template, Constructor<?> ctor) {
         if (ctor.getAnnotation(Inject.class) != null) {
             template.pl("@" + NameUtil.compiledNameToSourceName(Inject.class));
         }
@@ -292,7 +291,7 @@ public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient>
         template
             .pl("public ${requestHandle} ${methodName}(${requestType} ${requestArg},com.google.gwt.core.client.Callback<${responseType}, ${exceptionType}> callback){")
             .pl("   com.github.nmorel.gwtjackson.client.ObjectReader<${responseType}> jsonResponseReader = com.google.gwt.core.client.GWT.create(${jsonReaderType}.class);")
-            .pl("   return invokeAsync(buildRequest(${requestArg}),jsonResponseReader,callback);").pl("}");
+            .pl("   return invokeAsync(${requestArg},buildRequest(${requestArg}),jsonResponseReader,callback);").pl("}");
 
         return template.asJMethodSnippet();
     }
@@ -373,7 +372,7 @@ public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient>
         // only allow a single path with no variables
         String defaultPath = null;
         for (PathExpression result : pathExpressions) {
-            if (result.fieldNameVars.isEmpty()) {
+            if (result.getVars().isEmpty()) {
                 if (defaultPath != null) {
                     throw new JMutateException(
                             "There can only be one REST path with no variables as there is no way to choose which one to use otherwise. In bean %s, path '%s'",
@@ -385,7 +384,7 @@ public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient>
         boolean hasGuardConditions = false;
         boolean firstGuard = true;
         for (PathExpression expression : pathExpressions) {
-            boolean hasVars = !expression.fieldNameVars.isEmpty();
+            boolean hasVars = !expression.getVars().isEmpty();
             if (hasVars) {
                 hasGuardConditions = true;
                 if (firstGuard) {
@@ -395,7 +394,7 @@ public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient>
                 }
                 firstGuard = false;
                 boolean addSep = false;
-                for (String fieldName : expression.fieldNameVars) {
+                for (String fieldName : expression.getVars()) {
                     FieldModel fd = requestModel.getNamedField(fieldName);
                     if (fd == null) {
                         throw new JMutateException("For rest path expression '%s' in %s, could not find field with name or param '%s'", expression.expression,
@@ -410,11 +409,11 @@ public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient>
                 template.pl("){");
 
                 template.p("    builder");
-                for (Object part : expression.parts) {
+                for (Object part : expression.getAllParts()) {
                     if (part instanceof Var) {
-                        Var v = (Var) part;
-                        FieldModel fd = requestModel.getNamedField(v.name);
-                        template.p(".addPathPart(${requestArg}." + fd.fieldGetter + ")");
+                        Var var = (Var) part;
+                        FieldModel fieldModel = requestModel.getNamedField(var.name);
+                        template.p(".addPathPart(${requestArg}." + fieldModel.fieldGetter + ")");
                     } else {
                         template.p(".addSafePathPart(\"" + part + "\")");
                     }
@@ -524,35 +523,34 @@ public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient>
     }
     
     private static List<PathExpression> extractRestPaths(Class<?> requestType) {
-        RestPath restPath = requestType.getAnnotation(RestPath.class);
-        Path path = requestType.getAnnotation(Path.class);
+        Path restPath = requestType.getAnnotation(Path.class);
+        javax.ws.rs.Path path = requestType.getAnnotation(javax.ws.rs.Path.class);
         return extractRestPaths(restPath,path);
     }
     
     private List<PathExpression> extractRestPaths(JType requestType) {
-        Path path = null;
-        RestPath restPath = null;
-        JAnnotation restPathNode = requestType.getAnnotations().get(RestPath.class);
+        Path restPath = null;
+        JAnnotation restPathNode = requestType.getAnnotations().get(Path.class);
         if (restPathNode != null) {
-            restPath = (RestPath) ctxt.getAnnotationCompiler().toCompiledAnnotation(restPathNode.getAstNode());
+            restPath = (Path) ctxt.getAnnotationCompiler().toCompiledAnnotation(restPathNode.getAstNode());
         }
-    
-       JAnnotation pathNode = requestType.getAnnotations().get(Path.class);
+        javax.ws.rs.Path javaxPath = null;
+        JAnnotation pathNode = requestType.getAnnotations().get(javax.ws.rs.Path.class);
         if (pathNode != null) {
-            path = (Path) ctxt.getAnnotationCompiler().toCompiledAnnotation(pathNode.getAstNode());
+            javaxPath = (javax.ws.rs.Path) ctxt.getAnnotationCompiler().toCompiledAnnotation(pathNode.getAstNode());
         }
-        return extractRestPaths(restPath,path);
+        return extractRestPaths(restPath,javaxPath);
     }
     
-    private static List<PathExpression> extractRestPaths(RestPath restPath,Path path) {
+    private static List<PathExpression> extractRestPaths(Path restPath,javax.ws.rs.Path javaxPath) {
         List<PathExpression> expressions = new ArrayList<>();
         if (restPath != null) {
             for (String expression : restPath.value()) {
                 expressions.add(PathExpression.parse(expression));
             }
         }
-        if (path != null) {
-            expressions.add(PathExpression.parse(path.value()));
+        if (javaxPath != null) {
+            expressions.add(PathExpression.parse(javaxPath.value()));
         }
         return expressions;
     }
@@ -798,63 +796,6 @@ public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient>
             this.requestModel = parent;
             this.fieldName = fieldName;
             this.paramName = fieldName;
-        }
-    }
-
-    static class PathExpression {
-        final String expression;
-        final List<String> fieldNameVars = new ArrayList<>();
-        final List<Object> parts = new ArrayList<>();
-
-        public static PathExpression parse(String s) {
-            int max = s.length() - 1;
-            PathExpression result = new PathExpression(s);
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < s.length(); i++) {
-                char c = s.charAt(i);
-                if (c == '$' && i < max && s.charAt(i + 1) == '{') {
-                    i += 2;
-                    int start = i;
-                    // look for end
-                    while (i < max && s.charAt(i) != '}') {
-                        i++;
-                    }
-                    if (sb.length() > 0) {
-                        result.addPathPart(sb.toString());
-                        sb.setLength(0);
-                    }
-                    int end = i;
-                    String varName = s.substring(start, end);
-                    result.addVarPart(varName);
-                } else {
-                    sb.append(c);
-                }
-            }
-            if (sb.length() > 0) {
-                result.addPathPart(sb.toString());
-            }
-            return result;
-        }
-
-        PathExpression(String expression) {
-            this.expression = expression;
-        }
-
-        void addPathPart(String s) {
-            parts.add(s);
-        }
-
-        void addVarPart(String varName) {
-            parts.add(new Var(varName));
-            fieldNameVars.add(varName);
-        }
-
-        static class Var {
-            final String name;
-
-            Var(String name) {
-                this.name = name;
-            }
         }
     }
 

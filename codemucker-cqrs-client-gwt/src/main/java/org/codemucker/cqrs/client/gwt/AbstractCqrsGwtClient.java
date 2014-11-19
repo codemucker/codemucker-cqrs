@@ -13,7 +13,7 @@ import javax.validation.ConstraintViolationException;
 import javax.validation.ValidationException;
 import javax.validation.Validator;
 
-import org.codemucker.cqrs.client.CqrsException;
+import org.codemucker.cqrs.MessageException;
 import org.codemucker.cqrs.client.CqrsRequestHandle;
 import org.codemucker.lang.IBuilder;
 
@@ -58,7 +58,7 @@ public abstract class AbstractCqrsGwtClient {
         return new ValidationException("Invalid fields for request " + name);
     }
 
-    protected <TResponse> CqrsRequestHandle invokeAsync(final Builder b,final ObjectReader<TResponse> jsonReader,final Callback<TResponse, CqrsException> callback) {
+    protected <TRequest,TResponse> CqrsRequestHandle invokeAsync(final TRequest request, final Builder b,final ObjectReader<TResponse> jsonReader,final Callback<TResponse, MessageException> callback) {
         if (b == null) {
             throw new NullPointerException("request builer is null");
         }
@@ -73,7 +73,7 @@ public abstract class AbstractCqrsGwtClient {
                     int status  = response.getStatusCode();
                     if(!cqrsRequest.getExpectStatusCodes().contains(status)){
                         String msg = "invalid response status "  + status + " for " + cqrsRequest.builder.getHTTPMethod() + ":" + cqrsRequest.builder.getUrl() + ". Expected one of [" + Arrays.toString(cqrsRequest.getExpectStatusCodes().toArray()) + "]";
-                        callback.onFailure(new CqrsException(msg));
+                        callback.onFailure(new MessageException(msg));
                         return;
                     }
                     String body = response.getText();
@@ -84,7 +84,7 @@ public abstract class AbstractCqrsGwtClient {
                        res= jsonReader.read(body);
                     } catch(Exception e){
                         String msg = "error converting response from " + cqrsRequest.builder.getHTTPMethod() + ":" + cqrsRequest.builder.getUrl() + " to json. status:"  + response.getStatusText() + ", body:" + body;
-                        callback.onFailure(new CqrsException(msg,e));
+                        callback.onFailure(new MessageException(msg,e));
                         return;
                     }
                     callback.onSuccess(res);
@@ -93,13 +93,13 @@ public abstract class AbstractCqrsGwtClient {
                 @Override
                 public void onError(Request request, Throwable e) {
                     //LOG.warning(ErrorUtils.toLogMessage("request error", e));
-                    callback.onFailure(new CqrsException("request error",e));
+                    callback.onFailure(new MessageException("request error",e));
                 }
             });
         
             return new DefaultApiRequestHandle(cqrsRequest.builder.send());
         } catch (Exception e) {
-            callback.onFailure(new CqrsException("something wrong with request", e));
+            callback.onFailure(new MessageException("something wrong with request", e));
             return new FailedApiRequestHandle();
         }
     }

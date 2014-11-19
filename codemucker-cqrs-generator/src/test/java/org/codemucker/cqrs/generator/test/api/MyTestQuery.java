@@ -2,9 +2,9 @@ package org.codemucker.cqrs.generator.test.api;
 
 import javax.ws.rs.QueryParam;
 
-import org.codemucker.cqrs.RestPath;
+import org.codemucker.cqrs.Path;
 
-@RestPath("/path/of/my/quey/${myParam1}")
+@Path("/path/of/my/quey/${myParam1}")
 public class MyTestQuery {
 
     public String myParam1;

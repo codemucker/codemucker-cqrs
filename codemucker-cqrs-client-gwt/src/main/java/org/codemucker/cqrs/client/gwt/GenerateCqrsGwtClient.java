@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
 
 import javax.validation.Validator;
 
-import org.codemucker.cqrs.client.CqrsException;
+import org.codemucker.cqrs.MessageException;
 import org.codemucker.cqrs.client.CqrsRequestHandle;
 import org.codemucker.jpattern.DefaultGenerator;
 import org.codemucker.jpattern.Dependency;
@@ -72,7 +72,7 @@ public @interface GenerateCqrsGwtClient {
      */
     Class<?> serviceBaseClass() default AbstractCqrsGwtClient.class;
 
-    Class<?> serviceException() default CqrsException.class;
+    Class<?> serviceException() default MessageException.class;
 
     Class<?> asyncRequestHandle() default CqrsRequestHandle.class;
     
