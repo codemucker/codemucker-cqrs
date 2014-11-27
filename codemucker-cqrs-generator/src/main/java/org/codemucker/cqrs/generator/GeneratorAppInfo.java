@@ -28,7 +28,7 @@ public class GeneratorAppInfo {
 
             all = name + " (" + groupId + ":" + artifactId + ":" + version + ":" + timestamp + ")";
         } catch (IOException e) {
-            throw new RuntimeException("couldn't read app.propertie", e);
+            throw new RuntimeException("couldn't read application.properties", e);
         }
     }
 }
