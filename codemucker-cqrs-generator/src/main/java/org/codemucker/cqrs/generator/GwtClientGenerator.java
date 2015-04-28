@@ -28,7 +28,6 @@ import org.codemucker.jfind.matcher.AMethod;
 import org.codemucker.jfind.matcher.AnAnnotation;
 import org.codemucker.jmatch.AString;
 import org.codemucker.jmatch.Matcher;
-import org.codemucker.jmutate.ClashStrategy;
 import org.codemucker.jmutate.JMutateContext;
 import org.codemucker.jmutate.JMutateException;
 import org.codemucker.jmutate.SourceTemplate;
@@ -42,13 +41,14 @@ import org.codemucker.jmutate.ast.matcher.AJAnnotation;
 import org.codemucker.jmutate.ast.matcher.AJField;
 import org.codemucker.jmutate.ast.matcher.AJMethod;
 import org.codemucker.jmutate.ast.matcher.AJModifier;
-import org.codemucker.jmutate.generate.AbstractGenerator;
+import org.codemucker.jmutate.generate.AbstractCodeGenerator;
 import org.codemucker.jmutate.transform.CleanImportsTransform;
 import org.codemucker.jmutate.transform.InsertFieldTransform;
 import org.codemucker.jmutate.transform.InsertMethodTransform;
 import org.codemucker.jmutate.transform.InsertTypeTransform;
 import org.codemucker.jmutate.util.NameUtil;
-import org.codemucker.jpattern.IsGenerated;
+import org.codemucker.jpattern.generate.ClashStrategy;
+import org.codemucker.jpattern.generate.IsGenerated;
 import org.codemucker.lang.BeanNameUtil;
 import org.codemucker.lang.ClassNameUtil;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -56,7 +56,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 
-public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient> {
+public class GwtClientGenerator extends AbstractCodeGenerator<GenerateCqrsGwtClient> {
 
     private final Logger log = LogManager.getLogger(GwtClientGenerator.class);
 
@@ -394,11 +394,11 @@ public class GwtClientGenerator extends AbstractGenerator<GenerateCqrsGwtClient>
                 }
                 firstGuard = false;
                 boolean addSep = false;
-                for (String fieldName : expression.getVars()) {
-                    FieldModel fd = requestModel.getNamedField(fieldName);
+                for (Var field : expression.getVars()) {
+                    FieldModel fd = requestModel.getNamedField(field.name);
                     if (fd == null) {
                         throw new JMutateException("For rest path expression '%s' in %s, could not find field with name or param '%s'", expression.expression,
-                                requestModel.requestTypeFull, fieldName);
+                                requestModel.requestTypeFull, field.name);
                     }
                     if (addSep) {
                         template.p(" && ");

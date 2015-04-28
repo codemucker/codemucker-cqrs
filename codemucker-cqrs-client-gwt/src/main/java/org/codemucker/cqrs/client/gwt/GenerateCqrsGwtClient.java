@@ -25,13 +25,13 @@ import javax.validation.Validator;
 
 import org.codemucker.cqrs.MessageException;
 import org.codemucker.cqrs.client.CqrsRequestHandle;
-import org.codemucker.jpattern.DefaultGenerator;
-import org.codemucker.jpattern.Dependency;
+import org.codemucker.jpattern.generate.GeneratorOptions;
+import org.codemucker.jpattern.generate.Dependency;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Target(ElementType.TYPE)
-@DefaultGenerator("org.codemucker.cqrs.generator.GwtClientGenerator")
+@GeneratorOptions("org.codemucker.cqrs.generator.GwtClientGenerator")
 public @interface GenerateCqrsGwtClient {
 
     /**

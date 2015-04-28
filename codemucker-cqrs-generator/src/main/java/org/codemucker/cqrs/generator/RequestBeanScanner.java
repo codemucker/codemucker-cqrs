@@ -14,7 +14,7 @@ import org.codemucker.jfind.ClassScanner;
 import org.codemucker.jfind.FindResult;
 import org.codemucker.jfind.Root;
 import org.codemucker.jfind.matcher.AClass;
-import org.codemucker.jfind.matcher.AResource;
+import org.codemucker.jfind.matcher.ARootResource;
 import org.codemucker.jfind.matcher.ARoot;
 import org.codemucker.jmatch.AString;
 import org.codemucker.jmatch.Logical;
@@ -24,7 +24,7 @@ import org.codemucker.jmutate.SourceFilter;
 import org.codemucker.jmutate.SourceScanner;
 import org.codemucker.jmutate.ast.JType;
 import org.codemucker.jmutate.ast.matcher.AJType;
-import org.codemucker.jpattern.Dependency;
+import org.codemucker.jpattern.generate.Dependency;
 
 class RequestBeanScanner {
     
@@ -69,7 +69,7 @@ class RequestBeanScanner {
                 .scanRoots(ctxt.getResourceLoader().getAllRoots())
                 .filter(ClassFilter.with()
                         .rootMatches(scanRootMatcher)
-                        .resourceMatches(AResource.with()
+                        .resourceMatches(ARootResource.with()
                                 .packageName(scanPackageMatcher)
                                 .className(scanForClassNameMatcher))
                         .classMatches(AClass.that().isNotInterface().isNotAbstract().isNotAnonymous()))
@@ -98,12 +98,12 @@ class RequestBeanScanner {
     public FindResult<JType> scanSources() {
         FindResult<JType> results = SourceScanner.with()
                 .scanRoots(ctxt.getResourceLoader().getAllRoots())
-                .filter(SourceFilter.that()
-                        .includesRoot(scanRootMatcher)
-                        .includesResource(AResource.with()
+                .filter(SourceFilter.where()
+                        .rootMatches(scanRootMatcher)
+                        .resourceMatches(ARootResource.with()
                                 .packageName(scanPackageMatcher)
                                 .className(scanForClassNameMatcher))
-                        .includesType(AJType.that().isNotInterface().isNotAbstract().isNotAnonymous()))
+                        .typeMatches(AJType.that().isNotInterface().isNotAbstract().isNotAnonymous()))
                         .listener(new BaseMatchListener<Object>() {})
                 .build()
                 .findTypes();
@@ -156,7 +156,7 @@ class RequestBeanScanner {
         ARoot scanRootMatcher = ARoot.with();
         Dependency[] limitToDeps = options.requestBeanDependencies();
         for (Dependency dep : limitToDeps) {
-            scanRootMatcher.dependency(dep.group(), dep.artifact());
+            scanRootMatcher.dependency(dep.group(), dep.artifact(), dep.classifier());
         }
         return scanRootMatcher;
     }
